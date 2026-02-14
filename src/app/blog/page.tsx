@@ -35,19 +35,21 @@ export default function Blog() {
 
         <div className="grid gap-6">
           {blogPosts.map((post) => (
-            <article key={post.slug} className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center gap-3 text-sm text-gray-500 mb-2">
-                <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-                  {post.category}
-                </span>
-                <span>{post.date}</span>
-              </div>
-              <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
-              <p className="text-gray-600">{post.excerpt}</p>
-              <div className="flex items-center gap-1 text-amber-500 mt-3 text-sm font-medium">
-                阅读全文 <ArrowRight className="w-4 h-4" />
-              </div>
-            </article>
+            <Link key={post.slug} href={`/blog/${post.slug}`}>
+              <article className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center gap-3 text-sm text-gray-500 mb-2">
+                  <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
+                    {post.category}
+                  </span>
+                  <span>{post.date}</span>
+                </div>
+                <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
+                <p className="text-gray-600">{post.excerpt}</p>
+                <div className="flex items-center gap-1 text-amber-500 mt-3 text-sm font-medium">
+                  阅读全文 <ArrowRight className="w-4 h-4" />
+                </div>
+              </article>
+            </Link>
           ))}
         </div>
       </main>

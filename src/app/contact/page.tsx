@@ -10,7 +10,6 @@ export default function Contact() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // 简化处理：显示提交成功
     setSubmitted(true);
   };
 
@@ -99,10 +98,10 @@ export default function Contact() {
 
         <div className="mt-12 pt-8 border-t border-gray-200">
           <h3 className="font-semibold mb-4">其他联系方式</h3>
-          <p className="text-gray-600 text邮箱：contact@maxwinwin-sm">
-            .com<br />
-           微信：MaxWinWin_AI
-          </p>
+          <div className="space-y-2 text-gray-600">
+            <p>邮箱：leeqinfeng@gmail.com</p>
+            <p>微信：MurongAgain</p>
+          </div>
         </div>
       </main>
 
