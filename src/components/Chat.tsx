@@ -13,13 +13,12 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [streamingContent, setStreamingContent] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages]);
 
   const handleCopy = (content: string, index: number) => {
     navigator.clipboard.writeText(content);
@@ -35,7 +34,6 @@ export default function Chat() {
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
     setError('');
-    setStreamingContent('');
 
     try {
       const response = await fetch('/api/chat', {
@@ -44,28 +42,13 @@ export default function Chat() {
         body: JSON.stringify({ messages: [...messages, { role: 'user', content: userMsg }] })
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || '请求失败');
+      const data = await response.json();
+
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
       }
-
-      if (!response.body) throw new Error('No response body');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullContent += chunk;
-        setStreamingContent(fullContent);
-      }
-
-      setMessages(prev => [...prev, { role: 'assistant', content: fullContent }]);
-      setStreamingContent('');
-
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -130,19 +113,7 @@ export default function Chat() {
           </div>
         ))}
 
-        {/* Streaming content */}
-        {streamingContent && (
-          <div className="flex justify-start">
-            <div className="max-w-[85%] p-4 rounded-2xl bg-gray-100 text-gray-800">
-              <div className="whitespace-pre-wrap leading-relaxed">
-                {streamingContent}
-                <span className="inline-block w-2 h-4 bg-gray-500 animate-pulse ml-1"></span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isLoading && !streamingContent && (
+        {isLoading && (
           <div className="flex justify-start">
             <div className="bg-gray-100 p-4 rounded-2xl flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
