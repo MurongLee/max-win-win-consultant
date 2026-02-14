@@ -241,21 +241,13 @@ export default function Chat() {
       <div className="border-t border-gray-200 p-4">
         <div className="flex gap-2">
           {/* 文件上传 */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            className="hidden"
-            id="file-upload"
-            multiple
-            accept="image/*,.txt,.md,.pdf"
-          />
-          <label
-            htmlFor="file-upload"
-            className="px-3 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center"
+          {/* 文件上传 - 暂不开放 */}
+          <div 
+            className="px-3 py-3 border border-gray-200 rounded-xl flex items-center cursor-not-allowed opacity-50"
+            title="敬请期待"
           >
-            <Upload className="w-5 h-5 text-gray-500" />
-          </label>
+            <Upload className="w-5 h-5 text-gray-400" />
+          </div>
           
           {/* 语音输入 */}
           <button
