@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Send, Loader2, Bot, Sparkles, Copy, Check, Upload, X } from 'lucide-react';
+import { Send, Loader2, Bot, Sparkles, Copy, Check, Upload, X, Mic, MicOff } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -21,7 +21,9 @@ export default function Chat() {
   const [error, setError] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const handleCopy = (content: string, index: number) => {
     navigator.clipboard.writeText(content);
@@ -38,14 +40,12 @@ export default function Chat() {
       let content = '';
 
       if (fileType.startsWith('image/')) {
-        // 图片：转为 base64
         content = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.readAsDataURL(file);
         });
       } else if (fileType === 'text/plain' || fileType === 'text/markdown') {
-        // 文本文件：读取内容
         content = await file.text();
       } else if (fileType === 'application/pdf') {
         content = `[PDF文件: ${file.name}]`;
@@ -60,7 +60,6 @@ export default function Chat() {
       }]);
     }
 
-    // 清空 input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -68,6 +67,57 @@ export default function Chat() {
 
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 语音识别功能
+  const startRecording = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      setError('您的浏览器不支持语音识别功能');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'zh-CN';
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          transcript += event.results[i][0].transcript;
+        }
+      }
+      if (transcript) {
+        setInput(prev => prev + transcript);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+  };
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    setIsRecording(false);
   };
 
   const handleSend = async () => {
@@ -190,6 +240,7 @@ export default function Chat() {
       {/* Input */}
       <div className="border-t border-gray-200 p-4">
         <div className="flex gap-2">
+          {/* 文件上传 */}
           <input
             type="file"
             ref={fileInputRef}
@@ -206,15 +257,31 @@ export default function Chat() {
             <Upload className="w-5 h-5 text-gray-500" />
           </label>
           
+          {/* 语音输入 */}
+          <button
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`px-3 py-3 border rounded-xl flex items-center ${
+              isRecording 
+                ? 'border-red-500 bg-red-50 text-red-500' 
+                : 'border-gray-300 hover:bg-gray-50 text-gray-500'
+            }`}
+            title={isRecording ? '点击停止录音' : '点击开始语音输入'}
+          >
+            {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </button>
+          
+          {/* 文本输入 */}
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="输入你的销售难题..."
+            placeholder={isRecording ? '正在录音...' : '输入你的销售难题...'}
             disabled={isLoading}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
+          
+          {/* 发送按钮 */}
           <button
             onClick={handleSend}
             disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
