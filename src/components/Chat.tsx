@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Bot, Sparkles } from 'lucide-react';
+import { Send, Loader2, Bot, Sparkles, Copy, Check } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,11 +14,18 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [streamingContent, setStreamingContent] = useState('');
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
+
+  const handleCopy = (content: string, index: number) => {
+    navigator.clipboard.writeText(content);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -97,9 +104,28 @@ export default function Chat() {
             <div className={`max-w-[85%] p-4 rounded-2xl ${
               msg.role === 'user' 
                 ? 'bg-amber-500 text-white' 
-                : 'bg-gray-100 text-gray-800 whitespace-pre-wrap'
+                : 'bg-gray-100 text-gray-800'
             }`}>
-              {msg.content}
+              <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+              
+              {msg.role === 'assistant' && (
+                <button
+                  onClick={() => handleCopy(msg.content, i)}
+                  className="mt-3 flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  {copiedIndex === i ? (
+                    <>
+                      <Check className="w-3 h-3" />
+                      已复制
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      复制
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -107,9 +133,11 @@ export default function Chat() {
         {/* Streaming content */}
         {streamingContent && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] p-4 rounded-2xl bg-gray-100 text-gray-800 whitespace-pre-wrap">
-              {streamingContent}
-              <span className="inline-block w-2 h-4 bg-gray-500 animate-pulse ml-1"></span>
+            <div className="max-w-[85%] p-4 rounded-2xl bg-gray-100 text-gray-800">
+              <div className="whitespace-pre-wrap leading-relaxed">
+                {streamingContent}
+                <span className="inline-block w-2 h-4 bg-gray-500 animate-pulse ml-1"></span>
+              </div>
             </div>
           </div>
         )}
