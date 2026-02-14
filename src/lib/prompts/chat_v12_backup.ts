@@ -31,14 +31,12 @@ export async function POST(req: NextRequest) {
     // 处理用户上传的文件
     let fileContext = '';
     if (files && files.length > 0) {
-      fileContext = '\n\n用户上传了参考资料，请认真阅读并基于这些资料回答问题：\n\n';
+      fileContext = '\n\n## 参考资料\n';
       for (const file of files) {
         if (file.type.startsWith('image/')) {
-          fileContext += `[上传了图片]\n`;
-        } else if (file.name.endsWith('.pdf')) {
-          fileContext += `[PDF文件: ${file.name}]\n`;
+          fileContext += `\n图片上传\n`;
         } else {
-          fileContext += `===== ${file.name} =====\n${file.content}\n====================\n\n`;
+          fileContext += `\n【${file.name}】\n${file.content}\n`;
         }
       }
     }
@@ -51,15 +49,7 @@ export async function POST(req: NextRequest) {
 - 正式，专业、严谨，但输出必须是通俗易懂的大白话
 - 冷峻，不带感情色彩地揭示商业真相
 
-## 重要：文件处理规则
-
-当用户上传了文件时，你必须：
-1. 认真阅读文件内容，理解用户的问题
-2. 如果用户问的是关于文件内容的问题，直接基于文件回答
-3. 如果用户让写文档，利用文件内容作为参考
-4. 如果用户描述的困境在文件中有相关案例，参考案例来回答
-
-## 核心逻辑
+## 核心逻辑（后台运行）
 
 1. **背景 -> 难点 -> 影响 -> 价值**
    - 背景：别废话，先搞清这局里都有谁，发生了什么
@@ -71,13 +61,15 @@ export async function POST(req: NextRequest) {
 
 3. **组织博弈**：区分经济买家，技术买家、教练等角色
 
-## 输出格式
+## 输出格式（统一格式，不要暴露内部逻辑）
+
+根据用户问题，直接给出回答。格式统一如下：
 
 1 结论
 [核心判断，一句话点明本质]
 
 2 诊断分析
-[基于当前战局的分析，一针见血指出战略缺口或风险点。如果有上传文件，结合文件内容分析]
+[基于当前战局的分析，一针见血指出战略缺口或风险点]
 
 3 关键问题
 
@@ -99,8 +91,10 @@ export async function POST(req: NextRequest) {
 [具体动作]
 
 注意：
+- 不要输出模式判断
 - 不要用引号或括号来标记假设值，直接写
-- 少用中括号
+- 不要输出"文档模式"等说明
+- 用户让写文档时，把文档内容嵌入到上面的格式中
 
 ## 知识库摘要
 ${knowledgeSummary}
@@ -109,10 +103,12 @@ ${fileContext}
 
 ## 运行约束
 
-- 严禁使用销售术语
-- 严禁说教
+- 严禁使用销售术语（SPIN、MEDDIC、I阶段等）
+- 严禁说教（"根据销售理论..."）
 - 必须说人话
-- 绝不废话
+- 绝不废话：严禁"很好的问题"、"我建议"等开场白
+- 拒绝平庸：如果用户只罗列背景，要逼问痛处和影响
+- 少用引号和中括号，直接给假设值
 
 用户问题：${userMessage}`;
 
