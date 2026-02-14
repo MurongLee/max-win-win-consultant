@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { StreamingTextResponse } from 'ai';
 
 export const runtime = 'nodejs';
 
@@ -117,25 +116,30 @@ export async function POST(req: NextRequest) {
 
     const stream = await model.generateContentStream(systemPrompt);
 
-    return new StreamingTextResponse(
-      new ReadableStream({
-        async start(controller) {
-          const encoder = new TextEncoder();
-          try {
-            for await (const chunk of stream.stream) {
-              const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              if (text) {
-                controller.enqueue(encoder.encode(text));
-              }
+    const encoder = new TextEncoder();
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream.stream) {
+            const text = chunk.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (text) {
+              controller.enqueue(encoder.encode(text));
             }
-          } catch (error) {
-            console.error('Stream error:', error);
-          } finally {
-            controller.close();
           }
+        } catch (error) {
+          console.error('Stream error:', error);
+        } finally {
+          controller.close();
         }
-      })
-    );
+      }
+    });
+
+    return new NextResponse(readableStream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+      },
+    });
 
   } catch (error: any) {
     console.error('Error:', error);
