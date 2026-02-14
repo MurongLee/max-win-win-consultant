@@ -13,11 +13,12 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [streamingContent, setStreamingContent] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamingContent]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -27,6 +28,7 @@ export default function Chat() {
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsLoading(true);
     setError('');
+    setStreamingContent('');
 
     try {
       const response = await fetch('/api/chat', {
@@ -35,13 +37,28 @@ export default function Chat() {
         body: JSON.stringify({ messages: [...messages, { role: 'user', content: userMsg }] })
       });
 
-      const data = await response.json();
-      
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || '请求失败');
       }
+
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullContent += chunk;
+        setStreamingContent(fullContent);
+      }
+
+      setMessages(prev => [...prev, { role: 'assistant', content: fullContent }]);
+      setStreamingContent('');
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -77,17 +94,27 @@ export default function Chat() {
 
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] p-4 rounded-2xl ${
+            <div className={`max-w-[85%] p-4 rounded-2xl ${
               msg.role === 'user' 
                 ? 'bg-amber-500 text-white' 
-                : 'bg-gray-100 text-gray-800'
+                : 'bg-gray-100 text-gray-800 whitespace-pre-wrap'
             }`}>
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.content}
             </div>
           </div>
         ))}
 
-        {isLoading && (
+        {/* Streaming content */}
+        {streamingContent && (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] p-4 rounded-2xl bg-gray-100 text-gray-800 whitespace-pre-wrap">
+              {streamingContent}
+              <span className="inline-block w-2 h-4 bg-gray-500 animate-pulse ml-1"></span>
+            </div>
+          </div>
+        )}
+
+        {isLoading && !streamingContent && (
           <div className="flex justify-start">
             <div className="bg-gray-100 p-4 rounded-2xl flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
