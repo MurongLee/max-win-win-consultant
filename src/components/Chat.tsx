@@ -1,11 +1,17 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, Bot, Sparkles, Copy, Check } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Send, Loader2, Bot, Sparkles, Copy, Check, Upload, X } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+}
+
+interface UploadedFile {
+  name: string;
+  type: string;
+  content?: string;
 }
 
 export default function Chat() {
@@ -14,11 +20,8 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCopy = (content: string, index: number) => {
     navigator.clipboard.writeText(content);
@@ -26,12 +29,53 @@ export default function Chat() {
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      const fileType = file.type;
+      let content = '';
+
+      if (fileType.startsWith('image/')) {
+        // 图片：转为 base64
+        content = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      } else if (fileType === 'text/plain' || fileType === 'text/markdown') {
+        // 文本文件：读取内容
+        content = await file.text();
+      } else if (fileType === 'application/pdf') {
+        content = `[PDF文件: ${file.name}]`;
+      } else {
+        content = `[文件: ${file.name}]`;
+      }
+
+      setUploadedFiles(prev => [...prev, {
+        name: file.name,
+        type: fileType,
+        content
+      }]);
+    }
+
+    // 清空 input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && uploadedFiles.length === 0) || isLoading) return;
 
     const userMsg = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setMessages(prev => [...prev, { role: 'user', content: userMsg || '[上传了文件]' }]);
     setIsLoading(true);
     setError('');
 
@@ -39,7 +83,10 @@ export default function Chat() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, { role: 'user', content: userMsg }] })
+        body: JSON.stringify({ 
+          messages: [...messages, { role: 'user', content: userMsg }],
+          files: uploadedFiles
+        })
       });
 
       const data = await response.json();
@@ -49,6 +96,8 @@ export default function Chat() {
       } else {
         setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
       }
+      
+      setUploadedFiles([]);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -121,13 +170,42 @@ export default function Chat() {
             </div>
           </div>
         )}
-        
-        <div ref={scrollRef} />
       </div>
+
+      {/* Uploaded Files */}
+      {uploadedFiles.length > 0 && (
+        <div className="px-4 pb-2 flex flex-wrap gap-2">
+          {uploadedFiles.map((file, i) => (
+            <div key={i} className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">
+              <Upload className="w-3 h-3" />
+              <span>{file.name}</span>
+              <button onClick={() => removeFile(i)} className="ml-1 hover:text-amber-900">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t border-gray-200 p-4">
         <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            className="hidden"
+            id="file-upload"
+            multiple
+            accept="image/*,.txt,.md,.pdf"
+          />
+          <label
+            htmlFor="file-upload"
+            className="px-3 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer flex items-center"
+          >
+            <Upload className="w-5 h-5 text-gray-500" />
+          </label>
+          
           <input
             type="text"
             value={input}
@@ -139,7 +217,7 @@ export default function Chat() {
           />
           <button
             onClick={handleSend}
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || (!input.trim() && uploadedFiles.length === 0)}
             className="px-4 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}

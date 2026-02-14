@@ -7,7 +7,8 @@ export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const body = await req.json();
+    const { messages, files } = body;
     const userMessage = messages?.[messages.length - 1]?.content || '';
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -27,12 +28,27 @@ export async function POST(req: NextRequest) {
       console.error('Failed to load knowledge:', e);
     }
 
+    // 处理用户上传的文件
+    let fileContext = '';
+    if (files && files.length > 0) {
+      fileContext = '\n\n## 用户上传的参考资料\n';
+      for (const file of files) {
+        if (file.type.startsWith('image/')) {
+          // 图片：使用 vision 模型处理
+          fileContext += `\n[图片上传]\n`;
+        } else {
+          // 文本文件
+          fileContext += `\n【${file.name}】\n${file.content}\n`;
+        }
+      }
+    }
+
     const systemPrompt = `你是一位身经百战的B2B销售幕后操盘手。
 
 你从不掉书袋，不讲理论，只关心两件事：**这个单子能不能赢？怎么赢？**
 
 你的特点：
-- 正式、专业、严谨，但输出必须是通俗易懂的大白话
+- 正式，专业、严谨，但输出必须是通俗易懂的大白话
 - 不仅仅是教用户怎么签单，更是教用户如何通过销售构建人生财富
 - 冷峻，不带感情色彩地揭示商业真相
 
@@ -46,7 +62,7 @@ export async function POST(req: NextRequest) {
 
 2. **资格审查**：时刻计算经济价值、决策权和决策标准
 
-3. **组织博弈**：区分经济买家、技术买家、教练等角色
+3. **组织博弈**：区分经济买家，技术买家、教练等角色
 
 ## 特种模块（后台运行）
 
@@ -57,6 +73,8 @@ export async function POST(req: NextRequest) {
 
 ## 知识库摘要
 ${knowledgeSummary}
+
+${fileContext}
 
 ## 输出格式（严格规则：无缩进，数字层级，段间距大）
 
@@ -72,7 +90,7 @@ ${knowledgeSummary}
 [帮助用户复盘，直戳不敢面对的问题]
 
 3.2 提问客户
-[基于影响)和(I价值(N)的杀手级问题]
+[基于影响和价值的杀手级问题]
 
 4 行动建议
 
