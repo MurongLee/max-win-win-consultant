@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 export const runtime = 'nodejs';
 
@@ -18,15 +16,6 @@ export async function POST(req: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
 
-    // 加载知识库摘要
-    let knowledgeSummary = '';
-    try {
-      const knowledgePath = join(process.cwd(), 'src/lib/knowledge-summary.md');
-      knowledgeSummary = readFileSync(knowledgePath, 'utf-8');
-    } catch (e) {
-      console.error('Failed to load knowledge:', e);
-    }
-
     const systemPrompt = `你是一位拥有 20 年全球实战经验的 B2B 战略销售专家。
 
 你的大脑融合了：
@@ -36,9 +25,6 @@ export async function POST(req: NextRequest) {
 - MEDDIC 资格筛选
 - Miller Heiman 政治博弈
 - SPIN & Challenger 沟通框架
-
-## 知识库摘要
-${knowledgeSummary}
 
 ## 输出格式（严格规则：无缩进，数字层级，段间距大）
 
@@ -81,7 +67,7 @@ ${knowledgeSummary}
 3 诊断分析
 我专注于解决销售难题，请提问销售相关问题
 
-## 禁止提及知识库、微博、书籍、MEDDIC、Miller Heiman、SPIN、Challenger、知识库摘要
+## 禁止提及知识库、微博、书籍、MEDDIC、Miller Heiman、SPIN、Challenger
 
 用户问题：${userMessage}`;
 
